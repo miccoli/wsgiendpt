@@ -7,5 +7,7 @@ from wsgiref.validate import validator
 logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
-serve(validator(wsgiendpt.Application()), host='127.0.0.1', port='8080')
+#serve(validator(wsgiendpt.Application()), host='127.0.0.1', port='8080')
+serve(validator(wsgiendpt.Application()), unix_socket='/tmp/wait', 
+                unix_socket_perms='666')
 
