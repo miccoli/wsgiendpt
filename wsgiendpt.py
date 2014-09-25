@@ -124,10 +124,6 @@ class Application(object):
                 '405 Method not allowed', headers,
                 'method %s not allowed' % env['REQUEST_METHOD'])
 
-        # message headers
-        for k in AMZ_HEADERS + AMZ_OPT_HEADERS:
-            self.logger.debug("'%s' ->  '%s'", k, env.get(headtoenv(k)))
-
         for k in env:
             if k.startswith('HTTP_X_AMZ') and k not in AMZ_ENVS:
                 self.logger.debug("UNKNOWN: '%s' ->  '%s'", k, env[k])
@@ -139,10 +135,12 @@ class Application(object):
             raise LogicError('400 Bad Request', [], 'sorry?')
 
         if headtoenv('x-amz-sns-rawdelivery') in env:
-            # log rawdata and return
+            # log rawdata and return, no sig to verify
             rawdata = env['wsgi.input'].read()
             self.logger.info("%s rawdata: %s", amzhead, rawdata)
         else:
+            # full sns data, have to verify signature
+
             # decode json body
             try:
                 data = json.load(env['wsgi.input'])
@@ -155,16 +153,16 @@ class Application(object):
             assert env[headtoenv('x-amz-sns-subscription-arn')] not in \
                 data.values()
 
+            # get X509 signing certificate
             pem = urllib2.urlopen(data['SigningCertURL']).read()
-            cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem)
-            # except OpenSSL.crypto.Error as exp:
-            # raise ValueError('invalid pem: %s' % exp.args)
+            cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM,
+                                                   pem)
+            # verify signature
             try:
                 verifysig(data, cert, )
             except (ValueError, SignatureError) as exp:
                 self.logger.error('Bad signature')
-                self.logger.debug('Signature error: %s', exp)
-                self.logger.debug('Bad Data: %s', data)
+                self.logger.debug('Signature error: %s, %s', exp, data)
                 raise LogicError('400 Bad Request', [], 'sorry?')
 
             self.logger.info("%s data: %s", amzhead, data)
