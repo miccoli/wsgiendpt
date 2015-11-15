@@ -52,8 +52,12 @@ AMZ_SIG_MSG = {
     'SubscriptionConfirmation': ['Message', 'MessageId', 'SubscribeURL',
                                  'Timestamp', 'Token', 'TopicArn', 'Type'],
     }
-AMZ_SIG_MSG['UnsubscribeConfirmation'] = AMZ_SIG_MSG['SubscriptionConfirmation']
+AMZ_SIG_MSG['UnsubscribeConfirmation'] = \
+    AMZ_SIG_MSG['SubscriptionConfirmation']
 AMZ_SIG_MSG_OPT = ['Subject']
+
+# FIXME: is the signature digest always 'sha1WithRSAEncryption' ?
+AMZ_DIGEST = 'sha1WithRSAEncryption'
 
 
 class Error(Exception):
@@ -91,9 +95,7 @@ def verifysig(data, cert, ):
 
     # verify signature
     try:
-        # FIXME: should infer message digest 'sha1' from PEM data.
-        assert cert.get_signature_algorithm() == 'sha1WithRSAEncryption'
-        OpenSSL.crypto.verify(cert, sig, mess.encode('utf-8'), 'sha1')
+        OpenSSL.crypto.verify(cert, sig, mess.encode('utf-8'), AMZ_DIGEST)
     except OpenSSL.crypto.Error as exp:
         raise SignatureError('%s' % exp)
 
